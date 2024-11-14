@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
 import '../models/comment.dart';
 import '../models/post.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
-import 'dart:convert';
+import '../embed_builder.dart';
 
 class PostDetailsPage extends StatefulWidget {
   final Post post;
@@ -18,6 +19,8 @@ class PostDetailsPage extends StatefulWidget {
 
 class _PostDetailsPageState extends State<PostDetailsPage> {
   final TextEditingController _commentController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   List<Comment> comments = [];
   bool isLoading = true;
   late quill.QuillController _quillController;
@@ -29,6 +32,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     _loadRichContent();
   }
 
+  /// Load the rich content into the Quill editor
   void _loadRichContent() {
     if (widget.post.richContent != null && widget.post.richContent!.isNotEmpty) {
       final documentJson = jsonDecode(widget.post.richContent!);
@@ -42,6 +46,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     }
   }
 
+  /// Load comments for the post
   Future<void> _loadComments() async {
     setState(() => isLoading = true);
     try {
@@ -52,6 +57,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     setState(() => isLoading = false);
   }
 
+  /// Add a new comment
   Future<void> _addComment() async {
     final userId = AuthService.currentUser?.id;
     final commentText = _commentController.text.trim();
@@ -76,6 +82,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     await _loadComments();
   }
 
+  /// Open the file from the attachment list
   Future<void> _openFile(String filePath) async {
     final uri = Uri.file(filePath);
     if (await canLaunchUrl(uri)) {
@@ -91,7 +98,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.post.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.post.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -99,9 +109,24 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display rich text content
-            quill.QuillEditor.basic(
-              controller: _quillController,
+            // Display rich text content using QuillEditor
+            Container(
+              height: 300,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: quill.QuillEditor(
+                controller: _quillController,
+                scrollController: _scrollController,
+                focusNode: _focusNode,
+                configurations: quill.QuillEditorConfigurations(
+                  embedBuilders: [
+                    ImageEmbedBuilder(),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -117,7 +142,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                   );
                 }).toList(),
               ),
-
             const Divider(height: 32),
 
             // Comments section
@@ -133,13 +157,16 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                           return Card(
                             child: ListTile(
                               title: Text(comments[index].content),
-                              subtitle: Text('User ${comments[index].userId} - ${comments[index].createdAt}'),
+                              subtitle: Text(
+                                  'User ${comments[index].userId} - ${comments[index].createdAt}'),
                             ),
                           );
                         },
                       ),
 
             const SizedBox(height: 16),
+
+            // Input for adding a new comment
             Row(
               children: [
                 Expanded(

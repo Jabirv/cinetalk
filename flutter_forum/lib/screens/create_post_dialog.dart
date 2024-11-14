@@ -8,6 +8,8 @@ import 'package:path/path.dart' as path;
 import '../models/post.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
+import '../embed_builder.dart';
+import '../custom_block_embed.dart';
 
 class CreatePostDialog extends StatefulWidget {
   const CreatePostDialog({super.key});
@@ -19,6 +21,8 @@ class CreatePostDialog extends StatefulWidget {
 class _CreatePostDialogState extends State<CreatePostDialog> {
   final TextEditingController _titleController = TextEditingController();
   final QuillController _quillController = QuillController.basic();
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   List<PlatformFile> _selectedFiles = [];
 
   @override
@@ -26,54 +30,39 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     super.initState();
   }
 
-  /// Method to select files for attachments
-  Future<void> _selectFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null) {
-      setState(() {
-        _selectedFiles = result.files;
-      });
-    }
-  }
+  /// Method to insert an image into the Quill editor
+  Future<void> _insertImage() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.first;
+      final imagePath = file.path;
 
-Future<void> _insertImage() async {
-  final result = await FilePicker.platform.pickFiles(type: FileType.image);
-  if (result != null && result.files.isNotEmpty) {
-    final file = result.files.first;
-    final imagePath = file.path;
+      if (imagePath != null) {
+        final directory = await getApplicationDocumentsDirectory();
+        final imagesDir = Directory(path.join(directory.path, 'images'));
+        if (!await imagesDir.exists()) {
+          await imagesDir.create(recursive: true);
+        }
 
-    if (imagePath != null) {
-      // Get the application's documents directory
-      final directory = await getApplicationDocumentsDirectory();
+        final fileName = path.basename(imagePath);
+        final newFilePath = path.join(imagesDir.path, fileName);
+        await File(imagePath).copy(newFilePath);
 
-      // Create a subdirectory for images
-      final imagesDir = Directory(path.join(directory.path, 'images'));
-      if (!await imagesDir.exists()) {
-        await imagesDir.create(recursive: true);
+        final embed = BlockEmbed.custom(
+          ImageBlockEmbed.fromUrl(Uri.file(newFilePath).toString()),
+        );
+        final index = _quillController.selection.baseOffset;
+        _quillController.document.insert(index, embed);
       }
-
-      // Copy the image to the subdirectory
-      final fileName = path.basename(imagePath);
-      final newFilePath = path.join(imagesDir.path, fileName);
-      final newFile = await File(imagePath).copy(newFilePath);
-
-      // Insert the image into the Quill editor using the new file path
-      final fileUri = Uri.file(newFile.path);
-      final embed = BlockEmbed.image(fileUri.toString());
-      final index = _quillController.selection.baseOffset;
-      _quillController.document.insert(index, embed);
     }
   }
-}
-
-
 
   /// Save the rich text content as JSON
   String _getRichContentAsJson() {
     return jsonEncode(_quillController.document.toDelta().toJson());
   }
 
-  /// Copy files to a permanent directory and return their new paths
+  /// Copy selected files to a permanent directory and return their paths
   Future<List<String>> _saveFilesToLocalDirectory() async {
     final directory = await getApplicationDocumentsDirectory();
     List<String> filePaths = [];
@@ -90,7 +79,17 @@ Future<void> _insertImage() async {
     return filePaths;
   }
 
-  /// Method to add a new post
+  /// Method to select files for attachments
+  Future<void> _selectFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null) {
+      setState(() {
+        _selectedFiles = result.files;
+      });
+    }
+  }
+
+  /// Method to add a new post to the database
   Future<void> _addPost() async {
     final userId = AuthService.currentUser?.id;
     if (userId == null || _titleController.text.isEmpty) {
@@ -106,7 +105,7 @@ Future<void> _insertImage() async {
     final newPost = Post(
       userId: userId,
       title: _titleController.text,
-      content: '', // Use richContent instead
+      content: '',
       richContent: richContent,
       createdAt: DateTime.now().toIso8601String(),
       attachments: attachments,
@@ -118,18 +117,6 @@ Future<void> _insertImage() async {
     }
   }
 
-  Widget customEmbedBuilder(BuildContext context, Embed embed) {
-  if (embed.value.type == 'image') {
-    final imageUrl = embed.value.data;
-    return Image.file(
-      File(Uri.parse(imageUrl).path),
-      fit: BoxFit.cover,
-    );
-  }
-  return const SizedBox();
-}
-
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -138,7 +125,7 @@ Future<void> _insertImage() async {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title Input
+            // Title Input Field
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Title'),
@@ -150,38 +137,49 @@ Future<void> _insertImage() async {
               controller: _quillController,
             ),
 
-           Container(
-                    height: 200,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: QuillEditor(
-                      controller: _quillController,
-                      scrollController: ScrollController(),
-                      focusNode: FocusNode(),
-                    ),
+            const SizedBox(height: 10),
+
+            // Rich Text Editor with improved handling
+            Container(
+              height: 300,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: QuillEditor(
+                controller: _quillController,
+                scrollController: _scrollController,
+                focusNode: _focusNode,
+                configurations: QuillEditorConfigurations(
+                  embedBuilders: [
+                    ImageEmbedBuilder(),
+                  ],
                 ),
+              ),
+            ),
 
+            const SizedBox(height: 10),
 
-            // Insert Image Button
+            // Button to Insert Images
             ElevatedButton.icon(
               onPressed: _insertImage,
               icon: const Icon(Icons.image),
               label: const Text('Insert Image'),
             ),
+
             const SizedBox(height: 10),
 
-            // Attach Files Button
+            // Button to Attach Files
             ElevatedButton.icon(
               onPressed: _selectFiles,
               icon: const Icon(Icons.attach_file),
               label: const Text('Attach Files'),
             ),
+
             const SizedBox(height: 10),
 
-            // Display selected files
+            // Display Attached Files
             if (_selectedFiles.isNotEmpty)
               Column(
                 children: _selectedFiles.map((file) {
