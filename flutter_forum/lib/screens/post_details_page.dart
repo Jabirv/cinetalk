@@ -38,6 +38,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       final documentJson = jsonDecode(widget.post.richContent!);
       final doc = quill.Document.fromJson(documentJson);
       _quillController = quill.QuillController(
+        readOnly: true,
         document: doc,
         selection: const TextSelection.collapsed(offset: 0),
       );
@@ -109,26 +110,35 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display rich text content using QuillEditor
+           // Display rich text content using QuillEditor
             Container(
-              height: 300,
+              height: 700,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: quill.QuillEditor(
+              child: quill.QuillEditor.basic(
                 controller: _quillController,
                 scrollController: _scrollController,
                 focusNode: _focusNode,
                 configurations: quill.QuillEditorConfigurations(
+                  readOnlyMouseCursor: SystemMouseCursors.basic, // Set a non-editable cursor
+                  autoFocus: false,
+                  expands: false,
+                  padding: EdgeInsets.zero,
+                  showCursor: false, // Hide cursor since it's read-only
+                  enableInteractiveSelection: true,
                   embedBuilders: [
                     ImageEmbedBuilder(),
                   ],
+                  disableClipboard: true, // Disable clipboard for non-editable mode
+                  checkBoxReadOnly: true, // Ensure checkboxes are also non-editable
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 30),
 
             // Display attachments
             if (widget.post.attachments != null && widget.post.attachments!.isNotEmpty)
