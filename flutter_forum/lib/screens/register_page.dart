@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -16,13 +17,18 @@ class _RegisterPageState extends State<RegisterPage> {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
+    // Validation
     if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
 
+    // Registration process
     final success = await AuthService.register(username, password);
 
     if (success) {
@@ -40,12 +46,16 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey[50],
+      backgroundColor: const Color(0xFF1E1E2C), // Dark background
       appBar: AppBar(
-        backgroundColor: Colors.blueGrey,
-        title: const Text(
-          'Register',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: Text(
+          'CineTalk Register',
+          style: GoogleFonts.lobster(
+            fontSize: 28,
+            color: Colors.amberAccent,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -55,42 +65,66 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App Logo (Optional)
+              // App Icon
               const Icon(
                 Icons.person_add,
                 size: 80,
-                color: Colors.blueGrey,
+                color: Colors.amberAccent,
               ),
               const SizedBox(height: 30),
 
-              // Username Field
+              // Welcome Text
+              Text(
+                "Join CineTalk and start discussing movies!",
+                style: GoogleFonts.montserrat(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amberAccent,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+
+              // Username Input Field
               TextField(
                 controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Username',
-                  prefixIcon: const Icon(Icons.person),
+                  labelStyle: const TextStyle(color: Colors.amberAccent),
+                  prefixIcon: const Icon(Icons.person, color: Colors.amberAccent),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: const Color(0xFF2E2E3A),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25),
                     borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: const BorderSide(color: Colors.amberAccent),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Password Field
+              // Password Input Field
               TextField(
                 controller: _passwordController,
                 obscureText: true,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock),
+                  labelStyle: const TextStyle(color: Colors.amberAccent),
+                  prefixIcon: const Icon(Icons.lock, color: Colors.amberAccent),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: const Color(0xFF2E2E3A),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25),
                     borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: const BorderSide(color: Colors.amberAccent),
                   ),
                 ),
               ),
@@ -102,7 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: ElevatedButton(
                   onPressed: _register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey,
+                    backgroundColor: Colors.amberAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25),
                     ),
@@ -110,7 +144,11 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   child: const Text(
                     'Register',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -124,7 +162,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: const Text(
                   'Cancel',
                   style: TextStyle(
-                    color: Colors.blueGrey,
+                    color: Colors.amberAccent,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

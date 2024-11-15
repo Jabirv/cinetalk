@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../widgets/post_item.dart';
 import 'create_post_dialog.dart';
 import 'post_details_page.dart';
-import '../utils/text_utils.dart'; // Import the text utility
+import '../utils/text_utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,9 +16,25 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String searchQuery = '';
+  String selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
   List<Post> posts = [];
   bool isLoading = true;
+
+  final List<String> categories = [
+    'All',
+    'Action & Adventure',
+    'Drama',
+    'Comedy',
+    'Science Fiction & Fantasy',
+    'Horror & Thriller',
+    'Romance',
+    'Documentaries',
+    'Classics',
+    'Independent Films',
+    'Directors & Filmmaking',
+    'Awards & Festivals'
+  ];
 
   @override
   void initState() {
@@ -26,14 +42,14 @@ class _HomePageState extends State<HomePage> {
     _loadPosts();
   }
 
-  /// Fetch all posts from the database
+  /// Fetch all posts from the database, including the username
   Future<void> _loadPosts() async {
     setState(() {
       isLoading = true;
     });
 
     try {
-      posts = await DatabaseService.getPosts();
+      posts = await DatabaseService.getPosts(); // Updated to include usernames
     } catch (e) {
       print('Error loading posts: $e');
     }
@@ -43,12 +59,15 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /// Filter posts based on search query
+  /// Filter posts based on search query and selected category
   List<Post> get filteredPosts {
     return posts.where((post) {
       final title = post.title.toLowerCase();
       final content = post.content.toLowerCase();
-      return title.contains(searchQuery) || content.contains(searchQuery);
+      final categoryMatches = selectedCategory == 'All' ||
+          post.category?.toLowerCase() == selectedCategory.toLowerCase();
+      return categoryMatches &&
+          (title.contains(searchQuery) || content.contains(searchQuery));
     }).toList();
   }
 
@@ -58,25 +77,25 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (_) => const CreatePostDialog(),
     );
-    await _loadPosts(); // Refresh posts after creating a new post
+    await _loadPosts();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFF1E1E2C),
       appBar: AppBar(
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color(0xFF1A1A2E),
         title: const Text(
-          'Cine Talk',
+          'CineTalk',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.amberAccent,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Colors.amberAccent),
             onPressed: () {
               AuthService.currentUser = null;
               Navigator.pop(context);
@@ -98,22 +117,56 @@ class _HomePageState extends State<HomePage> {
               },
               decoration: InputDecoration(
                 hintText: 'Search posts...',
-                prefixIcon: const Icon(Icons.search, color: Colors.teal),
+                hintStyle: const TextStyle(color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, color: Colors.amberAccent),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: const Color(0xFF2E2E3A),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25.0),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 14.0),
               ),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
+
+          // Category Filter Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: categories.map((category) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: ChoiceChip(
+                      label: Text(
+                        category,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      selected: selectedCategory == category,
+                      backgroundColor: const Color(0xFF2E2E3A),
+                      selectedColor: Colors.amberAccent,
+                      onSelected: (selected) {
+                        setState(() {
+                          selectedCategory = category;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
 
           // List of Posts
           Expanded(
             child: isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.amberAccent),
+                  )
                 : filteredPosts.isEmpty
                     ? const Center(
                         child: Text(
@@ -135,14 +188,13 @@ class _HomePageState extends State<HomePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      PostDetailsPage(post: post),
+                                  builder: (context) => PostDetailsPage(post: post),
                                 ),
                               );
                             },
                             child: Card(
-                              color: Colors.white,
-                              elevation: 4,
+                              color: const Color(0xFF2E2E3A),
+                              elevation: 5,
                               margin: const EdgeInsets.only(bottom: 16.0),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),
@@ -156,9 +208,9 @@ class _HomePageState extends State<HomePage> {
                                     Text(
                                       post.title,
                                       style: const TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 20,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.teal,
+                                        color: Colors.amberAccent,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -169,29 +221,63 @@ class _HomePageState extends State<HomePage> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        color: Colors.black87,
+                                        color: Colors.white70,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 10),
 
-                                    // Display user ID and creation date
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'By User ${post.userId}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
+                                    // Display category
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _getCategoryColor(post.category ?? ''),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                        Text(
-                                          post.createdAt,
+                                        child: Text(
+                                          post.category ?? '',
                                           style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey,
-                                          ),
+                                              color: Colors.white,
+                                              fontSize: 12),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+
+                                    // Display username and creation date
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.person,
+                                                color: Colors.grey, size: 16),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'By ${post.username}', // Display the username
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.calendar_today,
+                                                color: Colors.grey, size: 16),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              post.createdAt,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -209,10 +295,42 @@ class _HomePageState extends State<HomePage> {
       // Floating Action Button to Create a New Post
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreatePostDialog,
-        backgroundColor: Colors.teal,
-        label: const Text('New Post'),
-        icon: const Icon(Icons.add),
+        backgroundColor: Colors.amberAccent,
+        label: const Text(
+          'New Post',
+          style: TextStyle(color: Colors.black),
+        ),
+        icon: const Icon(Icons.add, color: Colors.black),
       ),
     );
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'action & adventure':
+        return const Color(0xFFEF5350);
+      case 'drama':
+        return const Color(0xFF5C6BC0);
+      case 'comedy':
+        return const Color(0xFFFFA726);
+      case 'science fiction & fantasy':
+        return const Color(0xFF29B6F6);
+      case 'horror & thriller':
+        return const Color(0xFFD32F2F);
+      case 'romance':
+        return const Color(0xFFF48FB1);
+      case 'documentaries':
+        return const Color(0xFF8BC34A);
+      case 'classics':
+        return const Color(0xFF795548);
+      case 'independent films':
+        return const Color(0xFF9E9E9E);
+      case 'directors & filmmaking':
+        return const Color(0xFF7B1FA2);
+      case 'awards & festivals':
+        return const Color(0xFFFFD54F);
+      default:
+        return Colors.grey;
+    }
   }
 }

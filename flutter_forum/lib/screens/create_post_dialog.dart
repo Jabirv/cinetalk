@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as path;
+import 'package:tuple/tuple.dart';
 import '../models/post.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
@@ -24,6 +25,21 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   List<PlatformFile> _selectedFiles = [];
+  String? selectedCategory;
+
+  final List<String> categories = [
+    'Action & Adventure',
+    'Drama',
+    'Comedy',
+    'Science Fiction & Fantasy',
+    'Horror & Thriller',
+    'Romance',
+    'Documentaries',
+    'Classics',
+    'Independent Films',
+    'Directors & Filmmaking',
+    'Awards & Festivals'
+  ];
 
   @override
   void initState() {
@@ -92,23 +108,26 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   /// Method to add a new post to the database
   Future<void> _addPost() async {
     final userId = AuthService.currentUser?.id;
-    if (userId == null || _titleController.text.isEmpty) {
+    if (userId == null || _titleController.text.isEmpty || selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title cannot be empty')),
+        const SnackBar(content: Text('Title and category cannot be empty')),
       );
       return;
     }
 
     final attachments = await _saveFilesToLocalDirectory();
     final richContent = _getRichContentAsJson();
+    final category = selectedCategory!; // Safely assign it here
 
     final newPost = Post(
       userId: userId,
+      username: AuthService.currentUser?.username ?? 'Unknown',
       title: _titleController.text,
       content: '',
       richContent: richContent,
       createdAt: DateTime.now().toIso8601String(),
       attachments: attachments,
+      category: category, // Use non-nullable value here
     );
 
     final postId = await DatabaseService.insertPost(newPost);
@@ -120,7 +139,11 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Create New Post'),
+      backgroundColor: const Color(0xFF2E2E3A),
+      title: const Text(
+        'Create New Post',
+        style: TextStyle(color: Colors.amberAccent),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -128,78 +151,176 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
             // Title Input Field
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
-            ),
-            const SizedBox(height: 10),
-
-            // Rich Text Editor Toolbar
-            QuillToolbar.simple(
-              controller: _quillController,
-            ),
-
-            const SizedBox(height: 10),
-
-            // Rich Text Editor with improved handling
-            Container(
-              height: 300,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: QuillEditor(
-                controller: _quillController,
-                scrollController: _scrollController,
-                focusNode: _focusNode,
-                configurations: QuillEditorConfigurations(
-                  embedBuilders: [
-                    ImageEmbedBuilder(),
-                  ],
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Title',
+                labelStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: const Color(0xFF3E3E4A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 10),
+            // Category Dropdown
+            DropdownButtonFormField<String>(
+              value: selectedCategory,
+              items: categories.map((String category) {
+                return DropdownMenuItem<String>(
+                  value: category,
+                  child: Text(category, style: const TextStyle(color: Colors.white)),
+                );
+              }).toList(),
+              dropdownColor: const Color(0xFF3E3E4A),
+              onChanged: (value) {
+                setState(() {
+                  selectedCategory = value;
+                });
+              },
+              decoration: InputDecoration(
+                labelText: 'Category',
+                labelStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: const Color(0xFF3E3E4A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Quill Toolbar
+            QuillToolbar.simple(
+              controller: _quillController,
+              configurations: QuillSimpleToolbarConfigurations(
+                toolbarSectionSpacing: 8.0,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: true,
+                showStrikeThrough: true,
+                showInlineCode: true,
+                showColorButton: true,
+                showBackgroundColorButton: true,
+                showClearFormat: true,
+                showListNumbers: true,
+                showListBullets: true,
+                showHeaderStyle: true,
+                showCodeBlock: true,
+                showQuote: true,
+                showLink: true,
+                showUndo: true,
+                showRedo: true,
+                toolbarIconAlignment: WrapAlignment.start,
+                color: const Color.fromARGB(255, 209, 193, 193),
+                sectionDividerColor: Colors.amberAccent,
+                sharedConfigurations: const QuillSharedConfigurations(),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Rich Text Editor
+            Container(
+              height: 400,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E2E3A), // Dark background
+                border: Border.all(color: Colors.amberAccent),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: QuillEditor(
+                  controller: _quillController,
+                  scrollController: _scrollController,
+                  focusNode: _focusNode,
+                  configurations: QuillEditorConfigurations(
+                    padding: const EdgeInsets.all(16),
+                    embedBuilders: [ImageEmbedBuilder()],
+                    showCursor: true,
+                    autoFocus: true,
+                    readOnlyMouseCursor: SystemMouseCursors.text,
+                    checkBoxReadOnly: false,
+                    enableInteractiveSelection: true,
+                    disableClipboard: false,
+                    textSelectionThemeData: const TextSelectionThemeData(
+                      cursorColor: Colors.amberAccent,
+                      selectionColor: Color(0xFF3E3E4A),
+                      selectionHandleColor: Colors.amberAccent,
+                    ),
+                    customStyles: DefaultStyles(
+                      paragraph: DefaultTextBlockStyle(
+                        const TextStyle(fontSize: 16, color: Colors.white, height: 1.5),
+                        const HorizontalSpacing(8, 0),
+                        const VerticalSpacing(8, 8),
+                        const VerticalSpacing(4, 4),
+                        null,
+                      ),
+                      bold: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold),
+                      italic: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                      underline: const TextStyle(
+                        decoration: TextDecoration.underline,
+                        color: Colors.amberAccent,
+                      ),
+                      code: DefaultTextBlockStyle(
+                        const TextStyle(
+                          color: Colors.greenAccent,
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                        ),
+                        const HorizontalSpacing(8, 0),
+                        const VerticalSpacing(8, 8),
+                        const VerticalSpacing(4, 4),
+                        const BoxDecoration(
+                          color: Color(0xFF1E1E2C),
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
+                        ),
+                      ),
+                    ),
+                    minHeight: 300,
+                    maxHeight: 600,
+                    detectWordBoundary: true,
+                    floatingCursorDisabled: false,
+                    enableAlwaysIndentOnTab: true,
+                    onTapOutside: (event, focusNode) {
+                      focusNode.unfocus();
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Button to Insert Images
             ElevatedButton.icon(
               onPressed: _insertImage,
-              icon: const Icon(Icons.image),
-              label: const Text('Insert Image'),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Button to Attach Files
-            ElevatedButton.icon(
-              onPressed: _selectFiles,
-              icon: const Icon(Icons.attach_file),
-              label: const Text('Attach Files'),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Display Attached Files
-            if (_selectedFiles.isNotEmpty)
-              Column(
-                children: _selectedFiles.map((file) {
-                  return ListTile(
-                    title: Text(file.name),
-                    subtitle: Text('${(file.size / 1024).toStringAsFixed(2)} KB'),
-                  );
-                }).toList(),
+              icon: const Icon(Icons.image, color: Colors.black),
+              label: const Text('Insert Image', style: TextStyle(color: Colors.black)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amberAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
               ),
+            ),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
           onPressed: _addPost,
-          child: const Text('Add Post'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amberAccent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Add Post', style: TextStyle(color: Colors.black)),
         ),
       ],
     );

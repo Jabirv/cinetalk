@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
+import '../embed_builder.dart';
 import '../models/comment.dart';
 import '../models/post.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
-import '../embed_builder.dart';
 
 class PostDetailsPage extends StatefulWidget {
   final Post post;
@@ -23,6 +23,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   final FocusNode _focusNode = FocusNode();
   List<Comment> comments = [];
   bool isLoading = true;
+
   late quill.QuillController _quillController;
 
   @override
@@ -38,27 +39,27 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       final documentJson = jsonDecode(widget.post.richContent!);
       final doc = quill.Document.fromJson(documentJson);
       _quillController = quill.QuillController(
-        readOnly: true,
         document: doc,
         selection: const TextSelection.collapsed(offset: 0),
+        readOnly: true,
       );
     } else {
       _quillController = quill.QuillController.basic();
     }
   }
 
-  /// Load comments for the post
+  /// Load comments along with usernames
   Future<void> _loadComments() async {
     setState(() => isLoading = true);
     try {
-      comments = await DatabaseService.getComments(widget.post.id!);
+      comments = await DatabaseService.getCommentsWithUsernames(widget.post.id!);
     } catch (e) {
       print('Error loading comments: $e');
     }
     setState(() => isLoading = false);
   }
 
-  /// Add a new comment
+  /// Add a new comment with username
   Future<void> _addComment() async {
     final userId = AuthService.currentUser?.id;
     final commentText = _commentController.text.trim();
@@ -70,11 +71,15 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       return;
     }
 
+    final currentUser = await DatabaseService.getUserById(userId);
+    final username = currentUser?.username ?? 'Unknown';
+
     final newComment = Comment(
       postId: widget.post.id!,
       userId: userId,
+      username: username,
       content: commentText,
-      createdAt: DateTime.now().toIso8601String(),
+      createdAt: DateTime.now().toString(),
     );
 
     await DatabaseService.insertComment(newComment);
@@ -98,10 +103,12 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF1E1E2C),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A2E),
         title: Text(
           widget.post.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent),
         ),
         centerTitle: true,
       ),
@@ -110,34 +117,54 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-           // Display rich text content using QuillEditor
+            // Display rich text content using QuillEditor with updated configurations
             Container(
-              height: 700,
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF2E2E3A),
+                border: Border.all(color: Colors.amberAccent),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: quill.QuillEditor.basic(
+              child: quill.QuillEditor(
                 controller: _quillController,
                 scrollController: _scrollController,
                 focusNode: _focusNode,
                 configurations: quill.QuillEditorConfigurations(
-                  readOnlyMouseCursor: SystemMouseCursors.basic, // Set a non-editable cursor
+                  embedBuilders: [ImageEmbedBuilder()],
+                  padding: const EdgeInsets.all(16),
+                  showCursor: false,
                   autoFocus: false,
-                  expands: false,
-                  padding: EdgeInsets.zero,
-                  showCursor: false, // Hide cursor since it's read-only
+                  readOnlyMouseCursor: SystemMouseCursors.text,
+                  checkBoxReadOnly: true,
                   enableInteractiveSelection: true,
-                  embedBuilders: [
-                    ImageEmbedBuilder(),
-                  ],
-                  disableClipboard: true, // Disable clipboard for non-editable mode
-                  checkBoxReadOnly: true, // Ensure checkboxes are also non-editable
+                  disableClipboard: true,
+                  textSelectionThemeData: const TextSelectionThemeData(
+                    cursorColor: Colors.amberAccent,
+                    selectionColor: Color(0xFF3E3E4A),
+                    selectionHandleColor: Colors.amberAccent,
+                  ),
+                  customStyles: quill.DefaultStyles(
+                    paragraph: quill.DefaultTextBlockStyle(
+                      const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        height: 1.5,
+                      ),
+                      const quill.HorizontalSpacing(8, 0),
+                      const quill.VerticalSpacing(8, 8),
+                      const quill.VerticalSpacing(4, 4),
+                      null,
+                    ),
+                    bold: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold),
+                    italic: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    underline: const TextStyle(
+                      decoration: TextDecoration.underline,
+                      color: Colors.amberAccent,
+                    ),
+                  ),
                 ),
               ),
             ),
-
             const SizedBox(height: 30),
 
             // Display attachments
@@ -147,54 +174,73 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                 children: widget.post.attachments!.map((filePath) {
                   return ListTile(
                     leading: const Icon(Icons.attach_file, color: Colors.blue),
-                    title: Text(filePath.split('/').last),
+                    title: Text(filePath.split('/').last, style: const TextStyle(color: Colors.white70)),
                     onTap: () => _openFile(filePath),
                   );
                 }).toList(),
               ),
-            const Divider(height: 32),
+            const Divider(height: 32, color: Colors.grey),
 
             // Comments section
             isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: Colors.amberAccent))
                 : comments.isEmpty
-                    ? const Center(child: Text('No comments yet.'))
+                    ? const Center(child: Text('No comments yet.', style: TextStyle(color: Colors.grey)))
                     : ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: comments.length,
                         itemBuilder: (context, index) {
+                          final comment = comments[index];
                           return Card(
+                            color: const Color(0xFF2E2E3A),
+                            margin: const EdgeInsets.only(bottom: 12),
                             child: ListTile(
-                              title: Text(comments[index].content),
+                              title: Text(comment.content, style: const TextStyle(color: Colors.white70)),
                               subtitle: Text(
-                                  'User ${comments[index].userId} - ${comments[index].createdAt}'),
+                                '${comment.username} - ${comment.createdAt}',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
                             ),
                           );
                         },
                       ),
-
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Input for adding a new comment
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      labelText: 'Add a comment',
-                      border: OutlineInputBorder(),
+            AuthService.currentUser != null
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Add a comment',
+                            labelStyle: const TextStyle(color: Colors.grey),
+                            border: const OutlineInputBorder(),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.amberAccent),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.amberAccent),
+                            ),
+                          ),
+                          onSubmitted: (_) => _addComment(),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.amberAccent),
+                        onPressed: _addComment,
+                      ),
+                    ],
+                  )
+                : Center(
+                    child: Text(
+                      'If you want to comment, you should sign up!',
+                      style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
-                    onSubmitted: (_) => _addComment(),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _addComment,
-                ),
-              ],
-            ),
           ],
         ),
       ),

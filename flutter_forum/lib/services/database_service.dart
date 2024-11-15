@@ -21,56 +21,71 @@ class DatabaseService {
 
     _database = await openDatabase(
       join(await getDatabasesPath(), 'forum.db'),
-      version: 2, // Incremented version for schema change
+      version: 4, // Updated version
       onCreate: (db, version) async {
         await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE posts ADD COLUMN attachments TEXT');
-        }
+        await _migrateDatabase(db, oldVersion, newVersion);
       },
     );
     return _database!;
+  }
+
+  /// Method to handle migrations for schema changes
+  static Future<void> _migrateDatabase(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE posts ADD COLUMN attachments TEXT');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE posts ADD COLUMN username TEXT');
+      await db.execute('ALTER TABLE comments ADD COLUMN username TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE posts ADD COLUMN category TEXT'); // Add category column
+    }
   }
 
   /// Create tables for the database
   static Future<void> _createTables(Database db) async {
     // Create Users table
     await db.execute('''
-      CREATE TABLE users(
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT
       )
     ''');
 
-    // Create Posts table with attachments column
+    // Create Posts table with the new schema
     await db.execute('''
-      CREATE TABLE posts(
+      CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER,
+        username TEXT,
         title TEXT,
         content TEXT,
         richContent TEXT,
         createdAt TEXT,
-        attachments TEXT
+        attachments TEXT,
+        category TEXT
       )
     ''');
 
-    // Create Comments table
+    // Create Comments table with the new schema
     await db.execute('''
-      CREATE TABLE comments(
+      CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         postId INTEGER,
         userId INTEGER,
+        username TEXT,
         content TEXT,
         createdAt TEXT
       )
     ''');
   }
 
-  // Register a new user
+  /// Register a new user
   static Future<int> registerUser(User user) async {
     final db = await getDatabase();
     return await db.insert(
@@ -80,7 +95,7 @@ class DatabaseService {
     );
   }
 
-  // Login user
+  /// Login user
   static Future<User?> loginUser(String username, String password) async {
     final db = await getDatabase();
     final List<Map<String, dynamic>> maps = await db.query(
@@ -94,7 +109,7 @@ class DatabaseService {
     return null;
   }
 
-  /// Insert a new post with attachments into the database
+  /// Insert a new post into the database
   static Future<int> insertPost(Post post) async {
     final db = await getDatabase();
     return await db.insert(
@@ -104,14 +119,27 @@ class DatabaseService {
     );
   }
 
-  /// Fetch all posts from the database
+  /// Fetch all posts with usernames
   static Future<List<Post>> getPosts() async {
     final db = await getDatabase();
-    final List<Map<String, dynamic>> maps = await db.query('posts');
-    return List.generate(
-      maps.length,
-      (i) => Post.fromMap(maps[i]),
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT posts.*, users.username 
+      FROM posts 
+      JOIN users ON posts.userId = users.id 
+      ORDER BY posts.createdAt DESC
+    ''');
+    return List.generate(maps.length, (i) => Post.fromMap(maps[i]));
+  }
+
+  /// Fetch a limited number of posts
+  static Future<List<Post>> getLimitedPosts({int limit = 5}) async {
+    final db = await getDatabase();
+    final List<Map<String, dynamic>> maps = await db.query(
+      'posts',
+      limit: limit,
+      orderBy: 'createdAt DESC',
     );
+    return List.generate(maps.length, (i) => Post.fromMap(maps[i]));
   }
 
   /// Fetch a single post by ID
@@ -128,7 +156,7 @@ class DatabaseService {
     return null;
   }
 
-  // Insert a new comment into the database
+  /// Insert a new comment into the database
   static Future<int> insertComment(Comment comment) async {
     final db = await getDatabase();
     return await db.insert(
@@ -138,17 +166,33 @@ class DatabaseService {
     );
   }
 
-  // Fetch all comments related to a specific post
-  static Future<List<Comment>> getComments(int postId) async {
+  /// Fetch a user by ID
+  static Future<User?> getUserById(int userId) async {
     final db = await getDatabase();
     final List<Map<String, dynamic>> maps = await db.query(
-      'comments',
-      where: 'postId = ?',
-      whereArgs: [postId],
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
     );
-    return List.generate(
-      maps.length,
-      (i) => Comment.fromMap(maps[i]),
-    );
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  /// Fetch all comments related to a specific post with usernames
+  static Future<List<Comment>> getCommentsWithUsernames(int postId) async {
+    final db = await getDatabase();
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT comments.*, users.username 
+      FROM comments 
+      JOIN users ON comments.userId = users.id 
+      WHERE comments.postId = ? 
+      ORDER BY comments.createdAt ASC
+    ''', [postId]);
+
+    return List.generate(maps.length, (i) {
+      return Comment.fromMap(maps[i]);
+    });
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'home_page.dart';
 import 'register_page.dart';
@@ -38,12 +39,16 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey[50],
+      backgroundColor: const Color(0xFF1E1E2C), // Dark background
       appBar: AppBar(
-        backgroundColor: Colors.blueGrey,
-        title: const Text(
-          'Login',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: Text(
+          'CineTalk Login',
+          style: GoogleFonts.lobster(
+            fontSize: 28,
+            color: Colors.amberAccent,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -53,42 +58,65 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App Logo (Optional)
+              // App Icon
               const Icon(
-                Icons.forum,
+                Icons.movie_creation_outlined,
                 size: 80,
-                color: Colors.blueGrey,
+                color: Colors.amberAccent,
               ),
               const SizedBox(height: 30),
 
-              // Username Field
+              // Welcome Text
+              Text(
+                "Welcome back to CineTalk!",
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amberAccent,
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Username Input Field
               TextField(
                 controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Username',
-                  prefixIcon: const Icon(Icons.person),
+                  labelStyle: const TextStyle(color: Colors.amberAccent),
+                  prefixIcon: const Icon(Icons.person, color: Colors.amberAccent),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: const Color(0xFF2E2E3A),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25),
                     borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: const BorderSide(color: Colors.amberAccent),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Password Field
+              // Password Input Field
               TextField(
                 controller: _passwordController,
                 obscureText: true,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock),
+                  labelStyle: const TextStyle(color: Colors.amberAccent),
+                  prefixIcon: const Icon(Icons.lock, color: Colors.amberAccent),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: const Color(0xFF2E2E3A),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25),
                     borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: const BorderSide(color: Colors.amberAccent),
                   ),
                 ),
               ),
@@ -100,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey,
+                    backgroundColor: Colors.amberAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25),
                     ),
@@ -108,13 +136,17 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text(
                     'Login',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Register Button
+              // Register Navigation
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -125,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: const Text(
                   "Don't have an account? Register here",
                   style: TextStyle(
-                    color: Colors.blueGrey,
+                    color: Colors.amberAccent,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
