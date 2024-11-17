@@ -1,13 +1,14 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_forum/services/database_service.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as path;
-import 'package:tuple/tuple.dart';
+import 'package:uuid/uuid.dart';
 import '../models/post.dart';
-import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../embed_builder.dart';
 import '../custom_block_embed.dart';
@@ -105,36 +106,58 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
     }
   }
 
-  /// Method to add a new post to the database
-  Future<void> _addPost() async {
-    final userId = AuthService.currentUser?.id;
-    if (userId == null || _titleController.text.isEmpty || selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title and category cannot be empty')),
-      );
-      return;
-    }
+Future<void> _addPost() async {
+  final userId = AuthService.currentUser?.id;
+  print("userId: $userId");
+  print("Title: ${_titleController.text}");
+  print("Category: $selectedCategory");
 
-    final attachments = await _saveFilesToLocalDirectory();
-    final richContent = _getRichContentAsJson();
-    final category = selectedCategory!; // Safely assign it here
-
-    final newPost = Post(
-      userId: userId,
-      username: AuthService.currentUser?.username ?? 'Unknown',
-      title: _titleController.text,
-      content: '',
-      richContent: richContent,
-      createdAt: DateTime.now().toIso8601String(),
-      attachments: attachments,
-      category: category, // Use non-nullable value here
+  if (userId == null || _titleController.text.isEmpty || selectedCategory == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Title and category cannot be empty')),
     );
+    return;
+  }
 
-    final postId = await DatabaseService.insertPost(newPost);
-    if (postId > 0) {
-      Navigator.pop(context);
+  final richContent = _getRichContentAsJson();
+  final category = selectedCategory!;
+
+  // Generate a new UUID for the post ID
+  final newPostId = Uuid().v4();
+
+  // Upload attachments to Firebase Storage and get URLs
+  List<String> attachmentUrls = [];
+  for (var file in _selectedFiles) {
+    final filePath = file.path;
+    if (filePath != null) {
+      final fileName = path.basename(filePath);
+      final storageRef = FirebaseStorage.instance.ref().child('attachments/$newPostId/$fileName');
+
+      // Upload the file and get the download URL
+      final uploadTask = await storageRef.putFile(File(filePath));
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      attachmentUrls.add(downloadUrl);
     }
   }
+
+  // Create new Post object
+  final newPost = Post(
+    id: newPostId,
+    userId: userId,
+    username: AuthService.currentUser?.username ?? 'Unknown',
+    title: _titleController.text,
+    content: '',
+    richContent: richContent,
+    createdAt: DateTime.now().toIso8601String(),
+    attachments: attachmentUrls,
+    category: category,
+  );
+
+  // Save post to Firestore
+  await DatabaseService.insertPost(newPost);
+  Navigator.pop(context);
+}
+
 
   @override
   Widget build(BuildContext context) {

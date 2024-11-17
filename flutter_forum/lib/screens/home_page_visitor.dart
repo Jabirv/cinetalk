@@ -42,16 +42,26 @@ class _HomePageVisitorState extends State<HomePageVisitor> {
     setState(() {
       isLoading = true;
     });
+
     try {
-      posts = await DatabaseService.getLimitedPosts(limit: 5);
+      // Increase limit to fetch more posts and debug what's coming back
+      posts = await DatabaseService.getLimitedPosts(limit: 10);
+      print('Number of posts loaded: ${posts.length}');
+      for (var post in posts) {
+        print('Post title: ${post.title}, createdAt: ${post.createdAt}');
+      }
+
+      if (posts.isEmpty) {
+        print('No posts were loaded.');
+      }
     } catch (e) {
       print('Error loading posts: $e');
     }
+
     setState(() {
       isLoading = false;
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

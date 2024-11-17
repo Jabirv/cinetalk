@@ -1,13 +1,13 @@
 class Comment {
-  final int? id;
-  final int postId;
-  final int userId;
-  final String username; // New field
+  final String id;
+  final String postId;
+  final String userId;
+  final String username;
   final String content;
   final String createdAt;
 
   Comment({
-    this.id,
+    required this.id,
     required this.postId,
     required this.userId,
     required this.username,
@@ -27,15 +27,28 @@ class Comment {
     };
   }
 
-  // Create a Comment object from a map
-  factory Comment.fromMap(Map<String, dynamic> map) {
+  // Convert Comment object to JSON for Firestore
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id, // Include the id field
+      'postId': postId,
+      'userId': userId,
+      'username': username,
+      'content': content,
+      'createdAt': createdAt,
+    };
+  }
+
+
+  // Create a Comment object from JSON
+  factory Comment.fromJson(Map<String, dynamic> json) {
     return Comment(
-      id: map['id'],
-      postId: map['postId'],
-      userId: map['userId'],
-      username: map['username'],
-      content: map['content'],
-      createdAt: map['createdAt'],
+      id: json['id'], // Added to keep id consistent
+      postId: json['postId'],
+      userId: json['userId'],
+      username: json['username'],
+      content: json['content'],
+      createdAt: json['createdAt'],
     );
   }
 }

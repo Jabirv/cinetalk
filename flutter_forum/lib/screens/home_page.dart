@@ -42,14 +42,14 @@ class _HomePageState extends State<HomePage> {
     _loadPosts();
   }
 
-  /// Fetch all posts from the database, including the username
+  /// Fetch all posts from Firestore, including the username
   Future<void> _loadPosts() async {
     setState(() {
       isLoading = true;
     });
 
     try {
-      posts = await DatabaseService.getPosts(); // Updated to include usernames
+      posts = await DatabaseService.getPosts(); // Use Firestore to get posts
     } catch (e) {
       print('Error loading posts: $e');
     }

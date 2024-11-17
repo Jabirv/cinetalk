@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_forum/services/database_service.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../embed_builder.dart';
 import '../models/comment.dart';
 import '../models/post.dart';
-import '../services/database_service.dart';
 import '../services/auth_service.dart';
 
 class PostDetailsPage extends StatefulWidget {
@@ -23,6 +23,8 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   final FocusNode _focusNode = FocusNode();
   List<Comment> comments = [];
   bool isLoading = true;
+  int upvotes = 0;
+  int downvotes = 0;
 
   late quill.QuillController _quillController;
 
@@ -31,6 +33,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     super.initState();
     _loadComments();
     _loadRichContent();
+    _loadVotes();
   }
 
   /// Load the rich content into the Quill editor
@@ -48,7 +51,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     }
   }
 
-  /// Load comments along with usernames
+  /// Load comments along with usernames from Firestore
   Future<void> _loadComments() async {
     setState(() => isLoading = true);
     try {
@@ -59,7 +62,20 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     setState(() => isLoading = false);
   }
 
-  /// Add a new comment with username
+  /// Load votes for the post
+  Future<void> _loadVotes() async {
+    try {
+      final votes = await DatabaseService.getPostVotes(widget.post.id!);
+      setState(() {
+        upvotes = votes['upvotes'] ?? 0;
+        downvotes = votes['downvotes'] ?? 0;
+      });
+    } catch (e) {
+      print('Error loading votes: $e');
+    }
+  }
+
+  /// Add a new comment with username to Firestore
   Future<void> _addComment() async {
     final userId = AuthService.currentUser?.id;
     final commentText = _commentController.text.trim();
@@ -79,7 +95,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       userId: userId,
       username: username,
       content: commentText,
-      createdAt: DateTime.now().toString(),
+      createdAt: DateTime.now().toIso8601String(), id: '',
     );
 
     await DatabaseService.insertComment(newComment);
@@ -96,6 +112,51 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open file: $filePath')),
+      );
+    }
+  }
+  /// Upvote the post if the user is logged in and hasn't voted before
+  Future<void> _upvotePost() async {
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You need to be logged in to upvote.')),
+      );
+      return;
+    }
+
+    bool hasVoted = await DatabaseService.hasUserVoted(widget.post.id!, userId);
+    if (!hasVoted) {
+      await DatabaseService.upvotePost(widget.post.id!, userId);
+      setState(() {
+        upvotes += 1;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have already voted on this post.')),
+      );
+    }
+  }
+
+  /// Downvote the post if the user is logged in and hasn't voted before
+  Future<void> _downvotePost() async {
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You need to be logged in to downvote.')),
+      );
+      return;
+    }
+
+    bool hasVoted = await DatabaseService.hasUserVoted(widget.post.id!, userId);
+    if (!hasVoted) {
+      await DatabaseService.downvotePost(widget.post.id!, userId);
+      setState(() {
+        downvotes += 1;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have already voted on this post.')),
       );
     }
   }
@@ -164,6 +225,32 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                   ),
                 ),
               ),
+            ),
+            const SizedBox(height: 20),
+
+            // Upvote and Downvote buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_upward, color: Colors.amberAccent),
+                      onPressed: _upvotePost,
+                    ),
+                    Text('$upvotes', style: const TextStyle(color: Colors.white)),
+                  ],
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_downward, color: Colors.amberAccent),
+                      onPressed: _downvotePost,
+                    ),
+                    Text('$downvotes', style: const TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 30),
 

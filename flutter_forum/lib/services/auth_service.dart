@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import '../models/user.dart';
 import 'database_service.dart';
 
@@ -5,9 +6,13 @@ class AuthService {
   static User? currentUser;
 
   static Future<bool> register(String username, String password) async {
-    final user = User(username: username, password: password);
-    final userId = await DatabaseService.registerUser(user);
-    return userId > 0;
+    // Generate a unique ID using UUID
+    var uuid = Uuid();
+    String userId = uuid.v4();
+
+    final user = User(id: userId, username: username, password: password);
+    await DatabaseService.registerUser(user);
+    return true;
   }
 
   static Future<bool> login(String username, String password) async {
@@ -21,4 +26,3 @@ class AuthService {
     return false;
   }
 }
-

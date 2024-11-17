@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1033795471116",
+    "project_id": "cinetalk-fda66",
+    "storage_bucket": "cinetalk-fda66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1033795471116:android:0b63f116759473aeddeb29",
+        "android_client_info": {
+          "package_name": "com.cinetalk.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9Oe2M2VzbqHFuiBsXgr4vrW3GlNB4SNs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
