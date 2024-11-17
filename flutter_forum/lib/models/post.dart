@@ -25,6 +25,30 @@ class Post {
     this.downvotes = 0,
   });
 
+   // Define the copyWith method
+  Post copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? content,
+    String? richContent,
+    String? createdAt,
+    List<String>? attachments,
+    String? category,
+  }) {
+    return Post(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      username: username,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      richContent: richContent ?? this.richContent,
+      createdAt: createdAt ?? this.createdAt,
+      attachments: attachments ?? this.attachments,
+      category: category ?? this.category,
+    );
+  }
+
   // Convert Post object to JSON for Firestore
   Map<String, dynamic> toJson() {
     return {

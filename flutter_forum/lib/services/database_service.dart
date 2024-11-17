@@ -33,6 +33,16 @@ class DatabaseService {
     await _firestore.collection('posts').doc(post.id).set(post.toJson());
   }
 
+  /// Update a post
+  static Future<void> updatePost(Post post) async {
+    await _firestore.collection('posts').doc(post.id).update(post.toJson());
+  }
+
+  /// Delete a post
+  static Future<void> deletePost(String postId) async {
+    await _firestore.collection('posts').doc(postId).delete();
+  }
+
   /// Fetch all posts with usernames
   static Future<List<Post>> getPosts() async {
     final querySnapshot = await _firestore.collection('posts').orderBy('createdAt', descending: true).get();
@@ -82,6 +92,16 @@ class DatabaseService {
         .set(comment.toJson());
   }
 
+  /// Update a comment
+  static Future<void> updateComment(Comment comment) async {
+    await _firestore.collection('comments').doc(comment.id).update(comment.toJson());
+  }
+
+  /// Delete a comment
+  static Future<void> deleteComment(String commentId) async {
+    await _firestore.collection('comments').doc(commentId).delete();
+  }
+
   /// Fetch a user by ID
   static Future<User?> getUserById(String userId) async {
     final docSnapshot = await _firestore.collection('users').doc(userId).get();
@@ -115,31 +135,49 @@ class DatabaseService {
 
   /// Upvote post with user check
   static Future<void> upvotePost(String postId, String userId) async {
-    if (userId.isEmpty) {
-      throw Exception("User must be logged in to upvote");
-    }
     bool hasVoted = await hasUserVoted(postId, userId);
     if (!hasVoted) {
       final postVotes = await getPostVotes(postId);
       await updatePostVotes(postId: postId, upvotes: postVotes['upvotes']! + 1, downvotes: postVotes['downvotes']!);
       await recordUserVote(postId, userId, true);
-    } else {
-      throw Exception("User has already voted on this post");
     }
   }
 
   /// Downvote post with user check
   static Future<void> downvotePost(String postId, String userId) async {
-    if (userId.isEmpty) {
-      throw Exception("User must be logged in to downvote");
-    }
     bool hasVoted = await hasUserVoted(postId, userId);
     if (!hasVoted) {
       final postVotes = await getPostVotes(postId);
       await updatePostVotes(postId: postId, upvotes: postVotes['upvotes']!, downvotes: postVotes['downvotes']! + 1);
       await recordUserVote(postId, userId, false);
+    }
+  }
+
+  /// Update a post or comment with user check
+  static Future<void> updatePostOrComment(String id, Map<String, dynamic> data, String collection) async {
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not logged in');
+    }
+    final docSnapshot = await _firestore.collection(collection).doc(id).get();
+    if (docSnapshot.exists && docSnapshot.data()?['userId'] == userId) {
+      await _firestore.collection(collection).doc(id).update(data);
     } else {
-      throw Exception("User has already voted on this post");
+      throw Exception('Unauthorized or document does not exist');
+    }
+  }
+
+  /// Delete a post or comment with user check
+  static Future<void> deletePostOrComment(String id, String collection) async {
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not logged in');
+    }
+    final docSnapshot = await _firestore.collection(collection).doc(id).get();
+    if (docSnapshot.exists && docSnapshot.data()?['userId'] == userId) {
+      await _firestore.collection(collection).doc(id).delete();
+    } else {
+      throw Exception('Unauthorized or document does not exist');
     }
   }
 }

@@ -7,11 +7,12 @@ import '../embed_builder.dart';
 import '../models/comment.dart';
 import '../models/post.dart';
 import '../services/auth_service.dart';
+import '../widgets/EditButtonWidget.dart';
 
 class PostDetailsPage extends StatefulWidget {
-  final Post post;
+   Post post;
 
-  const PostDetailsPage({super.key, required this.post});
+  PostDetailsPage({super.key, required this.post});
 
   @override
   State<PostDetailsPage> createState() => _PostDetailsPageState();
@@ -50,6 +51,31 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       _quillController = quill.QuillController.basic();
     }
   }
+
+/// Reload the post details after editing
+Future<void> _loadPostDetails() async {
+  try {
+    final updatedPost = await DatabaseService.getPostById(widget.post.id!);
+    if (updatedPost != null) {
+      setState(() {
+        widget.post = widget.post.copyWith(
+          title: updatedPost.title,
+          category: updatedPost.category,
+          richContent: updatedPost.richContent,
+        );
+        _loadRichContent();
+      });
+    }
+  } catch (e) {
+    print('Error loading updated post details: $e');
+  }
+}
+
+
+/// Handle UI changes after deleting the post
+void _handlePostDeletion() {
+  Navigator.pop(context);
+}
 
   /// Load comments along with usernames from Firestore
   Future<void> _loadComments() async {
@@ -95,7 +121,8 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       userId: userId,
       username: username,
       content: commentText,
-      createdAt: DateTime.now().toIso8601String(), id: '',
+      createdAt: DateTime.now().toIso8601String(),
+      id: '',
     );
 
     await DatabaseService.insertComment(newComment);
@@ -115,6 +142,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       );
     }
   }
+
   /// Upvote the post if the user is logged in and hasn't voted before
   Future<void> _upvotePost() async {
     final userId = AuthService.currentUser?.id;
@@ -172,6 +200,14 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amberAccent),
         ),
         centerTitle: true,
+        actions: [
+          // Replacing individual edit and delete buttons with EditButtonsWidget
+          EditButtonsWidget(
+            post: widget.post,
+            onUpdate: _loadPostDetails, // Define this function to reload the post details after editing
+              onDelete: _handlePostDeletion,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
